@@ -342,31 +342,44 @@ void UpdateTexture(ImTextureData* texture)
 
 void LoadDefaultFont()
 {
-	FilePath path = Resource(U"engine/font/noto-cjk/NotoSansCJK-Regular.ttc.zstdcmp");
-	Blob data{ path };
+	ImGuiIO& io = ImGui::GetIO();
+
+	io.Fonts->AddFontDefault();
+
+	const FilePath path = Resource(U"engine/font/mplus/mplus-1p-regular.ttf.zstdcmp");
+	const Blob data{ path };
 
 	if (data.isEmpty())
 	{
+		Logger << U"🚨 Error: Failed to load Japanese font data.";
 		return;
 	}
 
-	auto& context = GetContext();
-
-	if (not Compression::Decompress(data, context.defaultFontBuffer))
+	static Blob decompressedFontBuffer;
+	if (decompressedFontBuffer.isEmpty())
 	{
-		return;
+		if (not Compression::Decompress(data, decompressedFontBuffer))
+		{
+			Logger << U"🚨 Error: Failed to decompress Japanese font data.";
+			return;
+		}
 	}
 
-	ImGuiIO& io = ImGui::GetIO();
-
+	// フォントをマージするための設定
 	ImFontConfig fontConfig;
-	strncpy_s(fontConfig.Name, "Noto Sans CJK Regular", sizeof("Noto Sans CJK Regular") + 1);
-	fontConfig.FontData = context.defaultFontBuffer.data();
-	fontConfig.FontDataSize = static_cast<int>(context.defaultFontBuffer.size());
-	fontConfig.FontDataOwnedByAtlas = false;
+	fontConfig.MergeMode = true;             
+	fontConfig.FontDataOwnedByAtlas = false; 
+	fontConfig.PixelSnapH = true;           
 
-	auto font = io.Fonts->AddFont(&fontConfig);
-	io.FontDefault = font;
+	const float fontSize = 16.0f; // フォントサイズを定義
+	
+	io.Fonts->AddFontFromMemoryTTF(
+		decompressedFontBuffer.data(),
+		static_cast<int>(decompressedFontBuffer.size()),
+		fontSize,
+		&fontConfig,
+		io.Fonts->GetGlyphRangesJapanese() 
+	);
 }
 
 //
